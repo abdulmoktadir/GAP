@@ -3,6 +3,33 @@ import streamlit as st
 
 st.set_page_config(page_title="Manual GWP Analysis", layout="wide")
 
+# ---------------- PASSWORD PROTECTION ----------------
+APP_PASSWORD = "2021"  # simple version
+
+def check_password():
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
+
+    if st.session_state.authenticated:
+        return True
+
+    st.title("Login Required")
+    password = st.text_input("Enter password", type="password")
+
+    if st.button("Login"):
+        if password == APP_PASSWORD:
+            st.session_state.authenticated = True
+            st.success("Access granted")
+            st.rerun()
+        else:
+            st.error("Incorrect password")
+
+    return False
+
+if not check_password():
+    st.stop()
+
+# ---------------- YOUR APP STARTS HERE ----------------
 GWP_CH4 = 23
 GWP_N2O = 296
 
@@ -61,7 +88,7 @@ def energy_emissions_from_mj(mj, source_name):
     return {
         "co2_g": mj * (ef["co2_direct_g_mj"] + ef["co2_indirect_g_mj"]),
         "ch4_g": mj * (ef["ch4_direct_g_mj"] + ef["ch4_indirect_g_mj"]),
-        "n2o_g": mj * mg_to_g(mj * 0) if False else mj * mg_to_g(ef["n2o_direct_mg_mj"] + ef["n2o_indirect_mg_mj"]),
+        "n2o_g": mj * mg_to_g(ef["n2o_direct_mg_mj"] + ef["n2o_indirect_mg_mj"]),
     }
 
 
@@ -89,7 +116,7 @@ st.title("Manual Global Warming Potential (GWP) Calculator")
 
 with st.expander("Equation", expanded=True):
     st.markdown(
-        """
+        r"""
 \[
 GHG^{TE} = CO_2^{WP} + CO_2^{EE} + 23(CH_4^{WP} + CH_4^{EE}) + 296(N_2O^{WP} + N_2O^{EE})
 \]
