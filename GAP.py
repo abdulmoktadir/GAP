@@ -3,33 +3,9 @@ import streamlit as st
 
 st.set_page_config(page_title="Manual GWP Analysis", layout="wide")
 
-# ---------------- PASSWORD PROTECTION ----------------
-APP_PASSWORD = "2021"  # simple version
+# Call logo early in the script
+st.logo("logo.png", size="large", link="https://your-company-site.com")
 
-def check_password():
-    if "authenticated" not in st.session_state:
-        st.session_state.authenticated = False
-
-    if st.session_state.authenticated:
-        return True
-
-    st.title("Login Required")
-    password = st.text_input("Enter password", type="password")
-
-    if st.button("Login"):
-        if password == APP_PASSWORD:
-            st.session_state.authenticated = True
-            st.success("Access granted")
-            st.rerun()
-        else:
-            st.error("Incorrect password")
-
-    return False
-
-if not check_password():
-    st.stop()
-
-# ---------------- YOUR APP STARTS HERE ----------------
 GWP_CH4 = 23
 GWP_N2O = 296
 
@@ -112,11 +88,42 @@ def calc_gwp_kg(co2_g, ch4_g, n2o_g):
     return (co2_g + 23 * ch4_g + 296 * n2o_g) / 1000.0
 
 
-st.title("Manual Global Warming Potential (GWP) Calculator")
+def logout():
+    st.session_state.authenticated = False
+    st.rerun()
 
-with st.expander("Equation", expanded=True):
-    st.markdown(
-        r"""
+
+def check_password():
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
+
+    if st.session_state.authenticated:
+        return True
+
+    st.title("Login Required")
+    st.write("Please enter the password to open the calculator.")
+
+    password = st.text_input("Password", type="password")
+
+    if st.button("Login", use_container_width=True):
+        if password == st.secrets["APP_PASSWORD"]:
+            st.session_state.authenticated = True
+            st.success("Access granted.")
+            st.rerun()
+        else:
+            st.error("Incorrect password.")
+
+    return False
+
+
+def main_app():
+    st.sidebar.button("Logout", on_click=logout, use_container_width=True)
+
+    st.title("Manual Global Warming Potential (GWP) Calculator")
+
+    with st.expander("Equation", expanded=True):
+        st.markdown(
+            r"""
 \[
 GHG^{TE} = CO_2^{WP} + CO_2^{EE} + 23(CH_4^{WP} + CH_4^{EE}) + 296(N_2O^{WP} + N_2O^{EE})
 \]
@@ -133,108 +140,114 @@ CH_4^{EE} = \sum_i S_i(D_{i,CH_4} + I_{i,CH_4})
 N_2O^{EE} = \sum_i S_i(D_{i,N_2O} + I_{i,N_2O})
 \]
 """
-    )
+        )
 
-st.sidebar.header("General settings")
-num_processes = st.sidebar.number_input("Number of processes", min_value=1, value=1, step=1)
-include_transport = st.sidebar.checkbox("Include transportation emissions", value=True)
-gasoline_share = st.sidebar.number_input("Gasoline share", min_value=0.0, max_value=1.0, value=0.32, step=0.01)
-diesel_share = st.sidebar.number_input("Diesel share", min_value=0.0, max_value=1.0, value=0.68, step=0.01)
+    st.sidebar.header("General settings")
+    num_processes = st.sidebar.number_input("Number of processes", min_value=1, value=1, step=1)
+    include_transport = st.sidebar.checkbox("Include transportation emissions", value=True)
+    gasoline_share = st.sidebar.number_input("Gasoline share", min_value=0.0, max_value=1.0, value=0.32, step=0.01)
+    diesel_share = st.sidebar.number_input("Diesel share", min_value=0.0, max_value=1.0, value=0.68, step=0.01)
 
-if abs((gasoline_share + diesel_share) - 1.0) > 1e-9:
-    st.sidebar.warning("Gasoline share + diesel share should equal 1.00")
+    if abs((gasoline_share + diesel_share) - 1.0) > 1e-9:
+        st.sidebar.warning("Gasoline share + diesel share should equal 1.00")
 
-results = []
+    results = []
 
-for i in range(int(num_processes)):
-    st.subheader(f"Process {i+1}")
+    for i in range(int(num_processes)):
+        st.subheader(f"Process {i+1}")
 
-    col1, col2 = st.columns(2)
+        col1, col2 = st.columns(2)
 
-    with col1:
-        process_name = st.text_input(f"Process name {i+1}", value=f"Process-{i+1}")
+        with col1:
+            process_name = st.text_input(f"Process name {i+1}", value=f"Process-{i+1}")
 
-        st.markdown("**Direct emissions from simulation model**")
-        co2_wp = st.number_input(f"CO2^WP (g/day) - {process_name}", min_value=0.0, value=0.0, key=f"co2wp_{i}")
-        ch4_wp = st.number_input(f"CH4^WP (g/day) - {process_name}", min_value=0.0, value=0.0, key=f"ch4wp_{i}")
-        n2o_wp = st.number_input(f"N2O^WP (g/day) - {process_name}", min_value=0.0, value=0.0, key=f"n2owp_{i}")
+            st.markdown("**Direct emissions from simulation model**")
+            co2_wp = st.number_input(f"CO2^WP (g/day) - {process_name}", min_value=0.0, value=0.0, key=f"co2wp_{i}")
+            ch4_wp = st.number_input(f"CH4^WP (g/day) - {process_name}", min_value=0.0, value=0.0, key=f"ch4wp_{i}")
+            n2o_wp = st.number_input(f"N2O^WP (g/day) - {process_name}", min_value=0.0, value=0.0, key=f"n2owp_{i}")
 
-    with col2:
-        st.markdown("**Energy consumption**")
-        electricity_mj = st.number_input(f"Electricity (MJ/day) - {process_name}", min_value=0.0, value=0.0, key=f"elec_{i}")
-        steam_mj = st.number_input(f"Steam (MJ/day) - {process_name}", min_value=0.0, value=0.0, key=f"steam_{i}")
-        natural_gas_mj = st.number_input(f"Natural gas (MJ/day) - {process_name}", min_value=0.0, value=0.0, key=f"ng_{i}")
+        with col2:
+            st.markdown("**Energy consumption**")
+            electricity_mj = st.number_input(f"Electricity (MJ/day) - {process_name}", min_value=0.0, value=0.0, key=f"elec_{i}")
+            steam_mj = st.number_input(f"Steam (MJ/day) - {process_name}", min_value=0.0, value=0.0, key=f"steam_{i}")
+            natural_gas_mj = st.number_input(f"Natural gas (MJ/day) - {process_name}", min_value=0.0, value=0.0, key=f"ng_{i}")
 
-        throughput_t_day = 0.0
-        distance_km = 0.0
+            throughput_t_day = 0.0
+            distance_km = 0.0
+            if include_transport:
+                st.markdown("**Transportation input**")
+                throughput_t_day = st.number_input(f"Throughput (t/day) - {process_name}", min_value=0.0, value=0.0, key=f"throughput_{i}")
+                distance_km = st.number_input(f"Transport distance (km) - {process_name}", min_value=0.0, value=0.0, key=f"distance_{i}")
+
+        elec_em = energy_emissions_from_mj(electricity_mj, "Electricity")
+        steam_em = energy_emissions_from_mj(steam_mj, "Steam")
+        ng_em = energy_emissions_from_mj(natural_gas_mj, "Natural gas")
+
+        co2_ee = elec_em["co2_g"] + steam_em["co2_g"] + ng_em["co2_g"]
+        ch4_ee = elec_em["ch4_g"] + steam_em["ch4_g"] + ng_em["ch4_g"]
+        n2o_ee = elec_em["n2o_g"] + steam_em["n2o_g"] + ng_em["n2o_g"]
+
+        transport_energy = 0.0
+        co2_tr = 0.0
+        ch4_tr = 0.0
+        n2o_tr = 0.0
+
         if include_transport:
-            st.markdown("**Transportation input**")
-            throughput_t_day = st.number_input(f"Throughput (t/day) - {process_name}", min_value=0.0, value=0.0, key=f"throughput_{i}")
-            distance_km = st.number_input(f"Transport distance (km) - {process_name}", min_value=0.0, value=0.0, key=f"distance_{i}")
+            tr = transport_emissions(throughput_t_day, distance_km, gasoline_share, diesel_share)
+            transport_energy = tr["transport_energy_mj_day"]
+            co2_tr = tr["co2_g"]
+            ch4_tr = tr["ch4_g"]
+            n2o_tr = tr["n2o_g"]
 
-    elec_em = energy_emissions_from_mj(electricity_mj, "Electricity")
-    steam_em = energy_emissions_from_mj(steam_mj, "Steam")
-    ng_em = energy_emissions_from_mj(natural_gas_mj, "Natural gas")
+        co2_total = co2_wp + co2_ee + co2_tr
+        ch4_total = ch4_wp + ch4_ee + ch4_tr
+        n2o_total = n2o_wp + n2o_ee + n2o_tr
 
-    co2_ee = elec_em["co2_g"] + steam_em["co2_g"] + ng_em["co2_g"]
-    ch4_ee = elec_em["ch4_g"] + steam_em["ch4_g"] + ng_em["ch4_g"]
-    n2o_ee = elec_em["n2o_g"] + steam_em["n2o_g"] + ng_em["n2o_g"]
+        gwp_kg_day = calc_gwp_kg(co2_total, ch4_total, n2o_total)
+        gwp_t_day = gwp_kg_day / 1000.0
 
-    transport_energy = 0.0
-    co2_tr = 0.0
-    ch4_tr = 0.0
-    n2o_tr = 0.0
+        results.append(
+            {
+                "Process": process_name,
+                "CO2_WP_g_day": co2_wp,
+                "CH4_WP_g_day": ch4_wp,
+                "N2O_WP_g_day": n2o_wp,
+                "Electricity_MJ_day": electricity_mj,
+                "Steam_MJ_day": steam_mj,
+                "NaturalGas_MJ_day": natural_gas_mj,
+                "Transport_MJ_day": transport_energy,
+                "CO2_total_g_day": co2_total,
+                "CH4_total_g_day": ch4_total,
+                "N2O_total_g_day": n2o_total,
+                "GWP_kg_CO2eq_day": gwp_kg_day,
+                "GWP_t_CO2eq_day": gwp_t_day,
+            }
+        )
 
-    if include_transport:
-        tr = transport_emissions(throughput_t_day, distance_km, gasoline_share, diesel_share)
-        transport_energy = tr["transport_energy_mj_day"]
-        co2_tr = tr["co2_g"]
-        ch4_tr = tr["ch4_g"]
-        n2o_tr = tr["n2o_g"]
+    df = pd.DataFrame(results)
 
-    co2_total = co2_wp + co2_ee + co2_tr
-    ch4_total = ch4_wp + ch4_ee + ch4_tr
-    n2o_total = n2o_wp + n2o_ee + n2o_tr
+    st.subheader("Results")
+    st.dataframe(df, use_container_width=True)
 
-    gwp_kg_day = calc_gwp_kg(co2_total, ch4_total, n2o_total)
-    gwp_t_day = gwp_kg_day / 1000.0
+    if not df.empty:
+        total_gwp_kg = df["GWP_kg_CO2eq_day"].sum()
+        total_gwp_t = total_gwp_kg / 1000.0
 
-    results.append(
-        {
-            "Process": process_name,
-            "CO2_WP_g_day": co2_wp,
-            "CH4_WP_g_day": ch4_wp,
-            "N2O_WP_g_day": n2o_wp,
-            "Electricity_MJ_day": electricity_mj,
-            "Steam_MJ_day": steam_mj,
-            "NaturalGas_MJ_day": natural_gas_mj,
-            "Transport_MJ_day": transport_energy,
-            "CO2_total_g_day": co2_total,
-            "CH4_total_g_day": ch4_total,
-            "N2O_total_g_day": n2o_total,
-            "GWP_kg_CO2eq_day": gwp_kg_day,
-            "GWP_t_CO2eq_day": gwp_t_day,
-        }
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Processes analyzed", len(df))
+        c2.metric("Total GWP (kg CO2-eq/day)", f"{total_gwp_kg:,.3f}")
+        c3.metric("Total GWP (t CO2-eq/day)", f"{total_gwp_t:,.6f}")
+
+    csv = df.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        "Download results as CSV",
+        data=csv,
+        file_name="manual_gwp_results.csv",
+        mime="text/csv",
     )
 
-df = pd.DataFrame(results)
 
-st.subheader("Results")
-st.dataframe(df, use_container_width=True)
-
-if not df.empty:
-    total_gwp_kg = df["GWP_kg_CO2eq_day"].sum()
-    total_gwp_t = total_gwp_kg / 1000.0
-
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Processes analyzed", len(df))
-    c2.metric("Total GWP (kg CO2-eq/day)", f"{total_gwp_kg:,.3f}")
-    c3.metric("Total GWP (t CO2-eq/day)", f"{total_gwp_t:,.6f}")
-
-csv = df.to_csv(index=False).encode("utf-8")
-st.download_button(
-    "Download results as CSV",
-    data=csv,
-    file_name="manual_gwp_results.csv",
-    mime="text/csv",
-)
+if check_password():
+    main_app()
+else:
+    st.stop()
