@@ -1,10 +1,6 @@
 import pandas as pd
 import streamlit as st
 
-st.set_page_config(page_title="Manual GWP Analysis", layout="wide")
-
-# Call logo early in the script
-st.logo("logo.png", size="large", link="https://your-company-site.com")
 
 GWP_CH4 = 23
 GWP_N2O = 296
